@@ -1,0 +1,7 @@
+"lootershooter"
+{
+    "base"      "base"
+    "title"     "Looter Shooter"
+    "category"  "other"
+    "menusystem" "1"
+}
