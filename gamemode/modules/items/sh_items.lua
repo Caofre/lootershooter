@@ -9,6 +9,16 @@ LS_Items.Rarities = {
     "Legendary"
 }
 
+LS_Items.RarityWeights = {
+
+    Common = 45,
+    Uncommon = 30,
+    Rare = 14,
+    Epic = 8,
+    Legendary = 3
+
+}
+
 LS_Items.RarityColors = {
     Common = Color(255,255,255),
     Uncommon = Color(50,255,50),
@@ -30,6 +40,14 @@ LS_Items.RarityStatCount = {
     Rare = 3,
     Epic = 4,
     Legendary = 5
+}
+
+LS_Items.RarityTalentCount = {
+    Common = 0,
+    Uncommon = 0,
+    Rare = 1,
+    Epic = 2,
+    Legendary = 3
 }
 
 LS_Items.PrefixWeights = {
@@ -107,26 +125,93 @@ LS_Items.RarityRanges = {
     Legendary = {10, 15}
 }
 
-function LS_Items.GenerateItem()
+function LS_Items.GetWeightedRarity(weights)
+
+    weights = weights or LS_Items.RarityWeights
+
+    local totalWeight = 0
+
+    for _, rarity in ipairs(LS_Items.Rarities) do
+        totalWeight = totalWeight + (weights[rarity] or 0)
+    end
+
+    if totalWeight <= 0 then
+        return table.Random(LS_Items.Rarities)
+    end
+
+    local roll = math.random(totalWeight)
+
+    local currentWeight = 0
+
+    for _, rarity in ipairs(LS_Items.Rarities) do
+
+        currentWeight = currentWeight + (weights[rarity] or 0)
+
+        if roll <= currentWeight then
+            return rarity
+        end
+
+    end
+
+end
+
+-- A fresh value for one stat on an existing weapon item (used by reforging).
+function LS_Items.RollStatValue(item, stat)
+
+    local range = LS_Items.RarityRanges[item.rarity]
+    local value = math.random(range[1], range[2])
+
+    if stat == LS_Items.PrefixBonusStats[item.prefix] then
+        value = math.floor(value * 1.5)
+    end
+
+    return value
+
+end
+
+function LS_Items.GenerateItem(rarityWeights, options)
+
+    -- Occasionally the roll is a gadget instead of a weapon.
+    if LS_Gadgets and LS_Gadgets.TryGenerate and not (options and options.Weapon) then
+        local gadget = LS_Gadgets.TryGenerate(rarityWeights, options and options.GadgetChance)
+
+        if gadget then
+            return gadget
+        end
+    end
+
+    -- ...or armor.
+    if LS_Armor and LS_Armor.TryGenerate and not (options and options.Weapon) then
+        local armor = LS_Armor.TryGenerate(rarityWeights, options and options.ArmorChance)
+
+        if armor then
+            return armor
+        end
+    end
 
     local item = {}
 
     -- Basic item properties
-    local weaponName,
-      weaponData =
-      LS_Weapons.GetRandomWeapon()
+    local weaponName, weaponData = LS_Weapons.GetRandomWeapon()
+
+    -- Crafting asks for a specific weapon.
+    if options and options.Weapon and LS_Weapons.Data[options.Weapon] then
+        weaponName, weaponData = options.Weapon, LS_Weapons.Data[options.Weapon]
+    end
 
 	item.weapon = weaponName
 	item.slot = weaponData.slot
 	item.archetype = weaponData.archetype
 	item.class = weaponData.class
 
-	item.rarity = table.Random(LS_Items.Rarities)
+	item.rarity = options and options.Rarity or LS_Items.GetWeightedRarity(rarityWeights)
 	item.prefix = table.Random(LS_Items.Prefixes)
 
     -- Stat storage
     item.stats = {}
-
+	-- Talent storage
+	item.talents = {}
+	
     -- Copy available stats so we don't roll duplicates
     local availableStats = table.Copy(LS_Items.StatTypes)
 	
@@ -168,7 +253,40 @@ function LS_Items.GenerateItem()
 item.stats[stat] = value
 
     end
+	local talentCount =
+		LS_Items.RarityTalentCount[item.rarity]
 
+	local availableTalents = {}
+
+	for id, talent in pairs(LS_Talents.Registered) do
+
+		if not talent.Slot then
+			table.insert(
+			availableTalents,
+			talent
+		)
+		end
+
+	end
+
+	for i = 1, talentCount do
+
+		if #availableTalents == 0 then
+			break
+		end
+
+		local talent =
+			table.remove(
+				availableTalents,
+				math.random(#availableTalents)
+			)
+
+		table.insert(
+			item.talents,
+			LS_Talents.Roll(talent.ID)
+		)
+
+	end
     return item
 
 end

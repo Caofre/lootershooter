@@ -7,6 +7,65 @@ LS_Equipment.Slots = {
     ARMOR = nil
 }
 
+function LS_Equipment.GiveWeapon(ply, item)
+
+	if not IsValid(ply) then
+		return
+	end
+
+	-- Armor is not a weapon; the armor system handles it.
+	if item.armor then
+		if SERVER and LS_Armor and LS_Armor.OnEquip then
+			LS_Armor.OnEquip(ply, item)
+		end
+
+		return
+	end
+
+	-- Gadgets are not weapons; the gadget system handles them.
+	if item.gadget then
+		if SERVER and LS_Gadgets and LS_Gadgets.OnEquip then
+			LS_Gadgets.OnEquip(ply, item)
+		end
+
+		return
+	end
+
+	ply:Give(item.class)
+
+	timer.Simple(0, function()
+
+		if not IsValid(ply) then
+			return
+		end
+
+		local weapon =
+			ply:GetWeapon(item.class)
+
+		if not IsValid(weapon) then
+			return
+		end
+
+		if weapon.Primary and weapon.Primary.Ammo and
+			weapon.Primary.Ammo ~= "none" then
+			ply:GiveAmmo(999, weapon.Primary.Ammo, true)
+		end
+
+		LS_Weapons.ApplyModifiers(
+			weapon,
+			item
+		)
+
+		-- Start with a full magazine at the rolled size, not the base size.
+		if weapon.Primary and weapon.Primary.ClipSize and
+			weapon.Primary.ClipSize > 0 then
+			weapon:SetClip1(math.floor(weapon.Primary.ClipSize))
+		end
+
+	end)
+
+end
+
 function LS_Equipment.EquipItem(ply, item)
 
     if not item then
@@ -33,39 +92,14 @@ function LS_Equipment.EquipItem(ply, item)
 
     LS_Equipment.Slots[item.slot] = item.id
 
-    ply = Entity(1)
-
-    if IsValid(ply) then
-
-        ply:Give(item.class)
-
-        timer.Simple(0, function()
-
-            if not IsValid(ply) then return end
-
-            local weapon =
-                ply:GetWeapon(item.class)
-
-            if not IsValid(weapon) then
-                print("Weapon not found")
-                return
-            end
-
-            print(
-                "Found weapon:",
-                weapon:GetClass()
-            )
-
-            LS_Weapons.ApplyModifiers(
-                weapon,
-                item
-            )
-
-        end)
-
-    end
+    LS_Equipment.GiveWeapon(
+    ply,
+    item
+)
 
     LS_PlayerStats.Rebuild()
+
+    if LS_Save and LS_Save.MarkDirty then LS_Save.MarkDirty() end
 
     return true
 
@@ -143,6 +177,20 @@ function LS_Equipment.GetTotalStats()
 
 end
 
+function LS_Equipment.IsItemEquipped(itemID)
+
+    for _, equippedItemID in pairs(LS_Equipment.Slots) do
+
+        if equippedItemID == itemID then
+            return true
+        end
+
+    end
+
+    return false
+
+end
+
 function LS_Equipment.RestoreEquipment(ply)
 
     for slot, itemID in pairs(
@@ -162,28 +210,44 @@ function LS_Equipment.RestoreEquipment(ply)
             continue
         end
 
-        ply:Give(item.class)
-
-        timer.Simple(0, function()
-
-            if not IsValid(ply) then
-                return
-            end
-
-            local weapon =
-                ply:GetWeapon(item.class)
-
-            if not IsValid(weapon) then
-                return
-            end
-
-            LS_Weapons.ApplyModifiers(
-                weapon,
-                item
-            )
-
-        end)
+        LS_Equipment.GiveWeapon(
+		ply,
+		item
+	)
 
     end
+
+end
+
+function LS_Equipment.GetEquippedWeaponItem(ply)
+
+    if not IsValid(ply) then
+        return nil
+    end
+
+    local weapon = ply:GetActiveWeapon()
+
+    if not IsValid(weapon) then
+        return nil
+    end
+
+    for _, itemID in pairs(LS_Equipment.Slots) do
+
+        if itemID then
+
+            local item =
+                LS_Inventory.GetItemByID(itemID)
+
+            if item and item.class == weapon:GetClass() then
+
+                return item
+
+            end
+
+        end
+
+    end
+
+    return nil
 
 end

@@ -4,10 +4,20 @@ include("shared.lua")
 
 function ENT:Draw()
 
+    local bobOffset = math.sin(
+        CurTime() * 2 + self:EntIndex()
+    ) * 4
+    local renderPosition = self:GetPos() + Vector(0, 0, bobOffset)
+    local renderAngles = Angle(0, CurTime() * 35, 0)
+
+    self:SetRenderOrigin(renderPosition)
+    self:SetRenderAngles(renderAngles)
     self:DrawModel()
+    self:SetRenderOrigin()
+    self:SetRenderAngles()
 
     local pos =
-        self:GetPos() +
+        renderPosition +
         Vector(0,0,30)
 
     local ang =
@@ -35,6 +45,9 @@ function ENT:Draw()
         local color =
             LS_Items.RarityColors[rarity]
             or color_white
+
+        surface.SetDrawColor(color.r, color.g, color.b, 180)
+        surface.DrawRect(-58, -37, 116, 3)
 
         draw.SimpleTextOutlined(
             rarity,

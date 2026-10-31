@@ -28,7 +28,7 @@ function LS_PlayerStats.Rebuild()
                 for stat, value in pairs(item.stats) do
 
                     stats[stat] =
-                        stats[stat] + value
+                        (stats[stat] or 0) + value
 
                 end
 
