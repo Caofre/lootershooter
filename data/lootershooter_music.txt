@@ -1,0 +1,8 @@
+{
+	"travel": "hl2_song13",
+	"combat": "hl2_song20_submix4",
+	"boss": "hl2_song14",
+	"fail": "hl1_stinger_song8",
+	"hub": "hl2_song26_trainstation1",
+	"victory": "hl1_stinger_song28"
+}
